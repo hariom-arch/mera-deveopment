@@ -164,8 +164,12 @@ export interface RoiResult {
   /** residualHumanCost + fabricCost. */
   withFabricVariableCost: number;
 
-  monthlySavings: number;
-  annualSavings: number;
+  /**
+   * The saving for whatever volumes were priced — one month for the
+   * calculator, the whole pilot for a report. Deliberately not called
+   * "monthly": annualising it needs the period, which lives in ReportPeriod.
+   */
+  savings: number;
   /** Savings as a share of the cost that can actually change. 0-100. */
   savingsPct: number;
   /** Return on Fabric spend: savings / fabricCost. null when spend is zero. */
@@ -176,3 +180,23 @@ export interface RoiResult {
 
   timeSaved: TimeSaved;
 }
+
+/**
+ * The span of time a set of figures covers.
+ *
+ * The calculator models one month. A pilot runs for whatever it ran for, so
+ * annualising its total by a flat x12 would misstate the yearly figure unless
+ * the pilot happened to last a month. Carrying the length explicitly keeps the
+ * annualised number honest and lets the copy say "over the pilot" rather than
+ * "every month".
+ */
+export interface ReportPeriod {
+  /** Noun used in copy, e.g. "month" or "pilot". */
+  label: string;
+  /** Length in months. Drives annualisation. */
+  months: number;
+  /** Set when the length had to be assumed rather than measured. */
+  assumed?: boolean;
+}
+
+export const MONTHLY_PERIOD: ReportPeriod = { label: 'month', months: 1 };

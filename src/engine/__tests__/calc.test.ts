@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { calculateRoi, hourlyRate, modelFunnel } from '../calc';
+import { annualise, calculateRoi, hourlyRate, modelFunnel } from '../calc';
 import { DEFAULT_ASSUMPTIONS, assumptionsForCurrency, defaultInputs } from '../defaults';
+import { MONTHLY_PERIOD } from '../types';
 import type { ActualVolumes, Assumptions, TeamInputs } from '../types';
 
 const A: Assumptions = DEFAULT_ASSUMPTIONS;
@@ -40,7 +41,7 @@ describe('calculateRoi — the headline numbers', () => {
     const one = calculateRoi(base({ numRecruiters: 1 }), A);
     const ten = calculateRoi(base({ numRecruiters: 10 }), A);
 
-    expect(ten.monthlySavings).toBeCloseTo(one.monthlySavings, 6);
+    expect(ten.savings).toBeCloseTo(one.savings, 6);
     expect(ten.savingsPct).toBeCloseTo(one.savingsPct, 6);
     expect(ten.roiMultiple!).toBeCloseTo(one.roiMultiple!, 6);
   });
@@ -53,10 +54,10 @@ describe('calculateRoi — the headline numbers', () => {
     expect(r.lines.some((l) => l.label.toLowerCase().includes('payroll'))).toBe(false);
   });
 
-  it('reconciles: baseline - (residual + fabric) === monthlySavings', () => {
+  it('reconciles: baseline - (residual + fabric) === savings', () => {
     const r = calculateRoi(base({ hiresPerMonth: 17 }), A);
     expect(r.withFabricVariableCost).toBeCloseTo(r.residualHumanCost + r.fabricCost, 6);
-    expect(r.monthlySavings).toBeCloseTo(
+    expect(r.savings).toBeCloseTo(
       r.baselineVariableCost - r.withFabricVariableCost,
       6,
     );
@@ -70,12 +71,12 @@ describe('calculateRoi — the headline numbers', () => {
 
   it('reports ROI as return on Fabric spend, not on total cost', () => {
     const r = calculateRoi(base(), A);
-    expect(r.roiMultiple).toBeCloseTo(r.monthlySavings / r.fabricCost, 6);
+    expect(r.roiMultiple).toBeCloseTo(r.savings / r.fabricCost, 6);
   });
 
-  it('annualises as twelve months', () => {
+  it('annualises a one-month period as twelve months', () => {
     const r = calculateRoi(base(), A);
-    expect(r.annualSavings).toBeCloseTo(r.monthlySavings * 12, 6);
+    expect(annualise(r.savings, MONTHLY_PERIOD)).toBeCloseTo(r.savings * 12, 6);
   });
 
   it('prices Fabric at billable interviews x list price', () => {
@@ -94,7 +95,7 @@ describe('calculateRoi — coverage honesty', () => {
     const r = calculateRoi(base(), none);
     expect(r.residualHumanCost).toBeCloseTo(r.baselineVariableCost, 6);
     expect(r.fabricCost).toBe(0);
-    expect(r.monthlySavings).toBeCloseTo(0, 6);
+    expect(r.savings).toBeCloseTo(0, 6);
     expect(r.timeSaved.totalHours).toBeCloseTo(0, 6);
   });
 
@@ -111,7 +112,7 @@ describe('calculateRoi — coverage honesty', () => {
       rates: { ...A.rates, costPerInterview: 500_000 },
     };
     const r = calculateRoi(base(), pricey);
-    expect(r.monthlySavings).toBeLessThan(0);
+    expect(r.savings).toBeLessThan(0);
     expect(r.roiMultiple).toBeLessThan(0);
   });
 });
@@ -193,7 +194,7 @@ describe('calculateRoi — actual pilot volumes', () => {
 
     // One engine, so the two modes cannot tell a client different stories.
     expect(asActuals.baselineVariableCost).toBeCloseTo(modelled.baselineVariableCost, 6);
-    expect(asActuals.monthlySavings).toBeCloseTo(modelled.monthlySavings, 6);
+    expect(asActuals.savings).toBeCloseTo(modelled.savings, 6);
     expect(asActuals.timeSaved.totalHours).toBeCloseTo(modelled.timeSaved.totalHours, 6);
   });
 });
@@ -202,7 +203,7 @@ describe('calculateRoi — degenerate input', () => {
   it('returns zeroes rather than NaN at zero volume', () => {
     const r = calculateRoi(base({ hiresPerMonth: 0 }), A);
     expect(r.baselineVariableCost).toBe(0);
-    expect(r.monthlySavings).toBe(0);
+    expect(r.savings).toBe(0);
     expect(r.savingsPct).toBe(0);
     expect(r.roiMultiple).toBeNull();
   });
@@ -210,7 +211,7 @@ describe('calculateRoi — degenerate input', () => {
   it('survives zero working hours without producing Infinity', () => {
     const broken: Assumptions = { ...A, rates: { ...A.rates, workingHoursPerMonth: 0 } };
     const r = calculateRoi(base(), broken);
-    expect(Number.isFinite(r.monthlySavings)).toBe(true);
+    expect(Number.isFinite(r.savings)).toBe(true);
     expect(r.timeSaved.recruiterCapacityFreedPct).toBeNull();
   });
 
@@ -233,5 +234,29 @@ describe('currency switching', () => {
     const usd = calculateRoi(defaultInputs('USD'), assumptionsForCurrency(A, 'USD'));
     expect(inr.fabricCost).toBe(150 * 300);
     expect(usd.fabricCost).toBe(150 * 4);
+  });
+});
+
+describe('annualise', () => {
+  it('scales a shorter period up to a year rather than multiplying by twelve', () => {
+    // A 28-day pilot is 0.92 months, so a flat x12 of its total would overstate
+    // the annual figure by about 9%.
+    const period = { label: 'pilot', months: 28 / 30.4375 };
+    const saved = 307_481;
+    expect(annualise(saved, period)).toBeCloseTo((saved / period.months) * 12, 6);
+    expect(annualise(saved, period)).toBeGreaterThan(saved * 12);
+  });
+
+  it('scales a longer period down', () => {
+    const period = { label: 'pilot', months: 3 };
+    expect(annualise(90_000, period)).toBeCloseTo(360_000, 6);
+  });
+
+  it('leaves a one-month period at x12', () => {
+    expect(annualise(1_000, MONTHLY_PERIOD)).toBe(12_000);
+  });
+
+  it('does not divide by zero on a degenerate period', () => {
+    expect(Number.isFinite(annualise(1_000, { label: 'pilot', months: 0 }))).toBe(true);
   });
 });

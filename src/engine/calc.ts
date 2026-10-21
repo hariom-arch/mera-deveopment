@@ -4,6 +4,7 @@ import type {
   CostLine,
   FunnelVolumes,
   HourlyRates,
+  ReportPeriod,
   RoiResult,
   TeamInputs,
   TimeSaved,
@@ -176,7 +177,7 @@ export function calculateRoi(
   const fabricCost = safe(volumes.billableInterviews * assumptions.rates.costPerInterview);
   const withFabricVariableCost = residualHumanCost + fabricCost;
 
-  const monthlySavings = baselineVariableCost - withFabricVariableCost;
+  const savings = baselineVariableCost - withFabricVariableCost;
 
   return {
     currency: inputs.currency,
@@ -187,11 +188,10 @@ export function calculateRoi(
     residualHumanCost,
     fabricCost,
     withFabricVariableCost,
-    monthlySavings,
-    annualSavings: monthlySavings * 12,
+    savings,
     savingsPct:
-      baselineVariableCost > 0 ? (monthlySavings / baselineVariableCost) * 100 : 0,
-    roiMultiple: fabricCost > 0 ? monthlySavings / fabricCost : null,
+      baselineVariableCost > 0 ? (savings / baselineVariableCost) * 100 : 0,
+    roiMultiple: fabricCost > 0 ? savings / fabricCost : null,
     recruiterPayrollMonthly: safe((inputs.recruiterSalary / 12) * inputs.numRecruiters),
     timeSaved: buildTimeSaved(lines, inputs, assumptions),
   };
@@ -202,4 +202,14 @@ export function fmtCount(n: number): string {
   const r = Math.round(n);
   if (r === 0 && n > 0) return n.toFixed(1);
   return r.toLocaleString('en-US');
+}
+
+/**
+ * Project a period's saving out to a year.
+ *
+ * Kept separate from the result so the period is always supplied explicitly: a
+ * flat x12 of a four-week pilot overstates the annual figure by about 9%.
+ */
+export function annualise(savings: number, period: ReportPeriod): number {
+  return (savings / Math.max(period.months, 1e-9)) * 12;
 }
