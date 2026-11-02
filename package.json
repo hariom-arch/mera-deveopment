@@ -3,23 +3,27 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Fabric ROI report builder — prospect calculator and pilot report from one shared calculation engine.",
+  "description": "Fabric ROI report builder \u2014 prospect calculator and pilot report from one shared calculation engine.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "report": "tsx src/report/cli.ts"
   },
   "dependencies": {
+    "playwright": "^1.49.1",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "@types/react": "18.3.12",
     "@types/react-dom": "18.3.1",
     "@vitejs/plugin-react": "4.3.4",
+    "tsx": "^4.19.2",
     "typescript": "5.6.3",
     "vite": "5.4.11",
     "vitest": "2.1.8"

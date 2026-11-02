@@ -1,29 +1,117 @@
 # Fabric ROI Report Builder
 
-Two outputs, one calculation engine:
-
-- **Estimate** — a prospect-facing calculator for use before a pilot.
-- **Pilot report** — a client deliverable built from a real Fabric analytics
-  export, after a pilot.
-
-Both call the same `calculateRoi()`. That is the point of the rebuild: the
-previous prototype had the calculator and the report each carrying their own
-copy of the maths, and the two priced a human first-round interview differently
-(60 minutes versus the AI's own ~18), so the same client could be shown two
-different ROI stories.
-
-## Running it
+An automated pilot ROI report, plus a pre-sale estimate calculator, over one
+shared calculation engine.
 
 ```sh
 npm install
-npm run dev        # http://localhost:5173
-npm test           # engine tests
-npm run build      # typecheck + static build into dist/
+npm run report -- --pilot pilots/acme-corp    # CSV in, branded PDF out
+npm run dev                                    # the estimate calculator
+npm test                                       # 108 engine tests
 ```
 
-Static output — deploy `dist/` anywhere.
+## The pilot report
+
+One command per pilot. Drop the analytics export and a small config into a
+folder and run it:
+
+```
+pilots/acme-corp/
+  pilot.json                   client, their salary rates, the metric to prove
+  analytics_export_acme.csv    the Fabric analytics export
+```
+
+```sh
+npm run report -- --pilot pilots/acme-corp
+#  Acme Corp — Time to shortlist: 4.0 (target met)
+#  Report written to out/acme-corp-fabric-pilot-roi.pdf
+```
+
+Six A4 pages, rendered through headless Chromium: cover, the success metric,
+analytics, cost saved, time saved, and the method. Add `--out <file.pdf>` to
+choose the path, `--html <file.html>` to dump the intermediate markup when
+debugging a layout.
+
+Because the config lives on disk, re-running the command on the same folder
+produces the same PDF. It drops into CI or a cron with no browser dialog.
+
+### pilot.json
+
+```jsonc
+{
+  "client": { "name": "Acme Corp", "function": "Engineering", "poc": "Priya Sharma" },
+  "currency": "INR",
+  "rates": {                       // the client's own figures, not defaults
+    "recruiterSalary": 900000,
+    "interviewerSalary": 2400000,
+    "numRecruiters": 2
+  },
+  "successMetric": {               // the one question the pilot was run to answer
+    "id": "time-to-shortlist",
+    "target": 7,                   // what good looked like
+    "baseline": 21                 // what it was before
+  },
+  "outcomes": {                    // what the CSV cannot know
+    "timeToShortlistDays": 4,
+    "hiresMade": 6
+  },
+  "assumptions": {                 // optional per-pilot overrides
+    "coverage": { "round1": 0.8 }
+  },
+  "quote": { "text": "...", "author": "Rahul Menon", "title": "Director of Engineering" }
+}
+```
+
+Validation collects every problem before failing, so a rep fixing a config at
+the end of a pilot does not fix one field, re-run, and discover the next.
+
+### The success metric
+
+Every client signs a pilot to answer one question. A report that leads with
+cost saved when the client cared about time to shortlist answers the wrong
+question, however good the number is. So the metric is chosen per pilot and
+gets the top of the report, scored against its target and baseline.
+
+| `successMetric.id` | Direction | Needs |
+|---|---|---|
+| `time-to-shortlist` | lower is better | `outcomes.timeToShortlistDays` |
+| `interview-coverage` | higher is better | nothing, from the CSV |
+| `shortlist-quality` | higher is better | nothing, from the CSV |
+| `recruiter-capacity` | higher is better | nothing, from the CSV |
+| `cost-per-shortlisted` | lower is better | nothing, from the CSV |
+| `cost-per-hire` | lower is better | `outcomes.hiresMade` |
+| `throughput` | higher is better | nothing, from the CSV |
+
+A metric whose required outcome is missing is refused by name at validation,
+rather than printing a blank hero.
+
+## Brand
+
+Fabric is purple (`#8A61FF`) on light surfaces with a black wordmark, Arial for
+body and headers, Cambria italic for one accent phrase per title. The lockup in
+`assets/` is the official asset from the brand kit.
+
+An earlier build of this tool was dark green. That came from a prototype and was
+never Fabric's palette. Arial resolves to Liberation Sans and Cambria to
+Caladea where those are not installed, both metric-compatible, so the PDF holds
+its layout on any machine.
+
+## Chart colours
+
+Validated with the dataviz palette validator against white, not chosen by eye:
+
+- **Human cost stages**: a neutral ordinal ramp, `#ADA9B6` to `#8D8D97` to
+  `#5B5B66`. They are ordered funnel stages, so the ramp carries meaning. Grey
+  for the old way.
+- **Fabric spend**: the brand purple. Purple for the new way.
+- **Candidate funnel**: a purple ordinal ramp, `#BDA9FF` to `#8A61FF` to
+  `#523D91`, since that is Fabric's own activity.
+
+The neutral-to-purple pair sits in the CVD warn band, so every bar carries a
+direct label and the cost table always prints.
 
 ## The model
+
 
 Everything lives in `src/engine/`:
 
@@ -32,8 +120,14 @@ Everything lives in `src/engine/`:
 | `types.ts` | The shape of the model: inputs, assumptions, result. |
 | `defaults.ts` | Default assumptions, per-market pricing, the editable-field list. |
 | `calc.ts` | `calculateRoi()` — the single source of truth. |
+| `metrics.ts` | The success-metric registry and target scoring. |
+| `config.ts` | `pilot.json` schema, validation and assumption merging. |
 | `csv.ts` | Fabric analytics export parsing. |
 | `format.ts` | Currency and number formatting. |
+
+The report renderer is in `src/report/`: `theme.ts` and `css.ts` hold the brand,
+`template.ts` builds the HTML, `render.ts` drives Chromium, `cli.ts` is the
+command.
 
 ### What is compared
 
@@ -147,13 +241,13 @@ not by eye:
 
 ## Known gaps
 
-- No persistence or shareable links. Reports are generated client-side and
-  exported via print-to-PDF. A saved-report backend would need a server.
-- The logo is a placeholder inline SVG in `src/components/Logo.tsx`. The
-  prototype pulled it from a Google image-cache URL, which would break; replace
-  this with the real asset.
+- Defaults in `DEFAULT_ASSUMPTIONS` are reasonable industry figures, not
+  Fabric's measured funnel data. Replace them when you have real numbers, and
+  update the rationale strings in `ASSUMPTION_FIELDS` to cite the source at the
+  same time. The report prints those rationales verbatim.
+- The report has no e-mail or storage step. It writes a PDF to `out/`; sending
+  or hosting it is left to whatever already does that.
 - `cal.com` and demo links are hardcoded in `CalculatorMode.tsx`.
-- Defaults are reasonable industry figures, not Fabric's measured funnel data.
-  Replace the values in `DEFAULT_ASSUMPTIONS` with real numbers when you have
-  them — the rationale strings in `ASSUMPTION_FIELDS` should be updated to cite
-  the source at the same time.
+- The in-browser pilot preview still exists under the "Pilot report" tab. The
+  PDF from `npm run report` is the deliverable; that tab is for checking a
+  pilot's numbers quickly.

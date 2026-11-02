@@ -108,16 +108,17 @@ export function useRoi(actuals?: ActualVolumes): RoiState {
 export function useTheme(): [string, () => void] {
   const [theme, setTheme] = useState<string>(() => {
     try {
-      return localStorage.getItem('fabric-roi-theme') ?? 'dark';
+      return localStorage.getItem('fabric-roi-theme') ?? 'light';
     } catch {
-      return 'dark';
+      return 'light';
     }
   });
 
   const toggle = useCallback(() => {
     setTheme((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
+      if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
       try {
         localStorage.setItem('fabric-roi-theme', next);
       } catch {

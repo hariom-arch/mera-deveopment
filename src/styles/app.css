@@ -2,6 +2,17 @@
    Layout and components
    ============================================================ */
 
+/* ── Logo ─────────────────────────────────────────────────── */
+.logo { display: inline-block; flex: none; }
+.logo img { display: block; }
+.logo__dark { display: none; }
+:root[data-theme='dark'] .logo__light { display: none; }
+:root[data-theme='dark'] .logo__dark { display: block; }
+@media print {
+  .logo__dark { display: none !important; }
+  .logo__light { display: block !important; }
+}
+
 /* ── Top bar ──────────────────────────────────────────────── */
 .topbar {
   position: sticky;

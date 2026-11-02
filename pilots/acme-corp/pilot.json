@@ -1,0 +1,27 @@
+{
+  "client": {
+    "name": "Acme Corp",
+    "function": "Engineering",
+    "poc": "Priya Sharma"
+  },
+  "currency": "INR",
+  "rates": {
+    "recruiterSalary": 900000,
+    "interviewerSalary": 2400000,
+    "numRecruiters": 2
+  },
+  "successMetric": {
+    "id": "time-to-shortlist",
+    "target": 7,
+    "baseline": 21
+  },
+  "outcomes": {
+    "timeToShortlistDays": 4,
+    "hiresMade": 6
+  },
+  "quote": {
+    "text": "We used to lose good candidates waiting on panel availability. The shortlist now lands before the hiring manager has finished writing the brief.",
+    "author": "Rahul Menon",
+    "title": "Director of Engineering, Acme Corp"
+  }
+}
