@@ -239,14 +239,22 @@ not by eye:
 - Three light-mode fills sit below 3:1 contrast, so the table view is always
   available and always printed.
 
+## Sending the report
+
+Deliberately manual. `npm run report` writes the PDF to `out/` and stops there.
+Whoever ran the pilot attaches it, or drops it in the client's shared drive,
+and sends it themselves.
+
+This is a decision, not a missing feature: the report goes to a client at the
+end of a pilot, usually alongside a conversation, and it should not leave on
+its own. Do not add an e-mail or upload step without being asked for one.
+
 ## Known gaps
 
 - Defaults in `DEFAULT_ASSUMPTIONS` are reasonable industry figures, not
   Fabric's measured funnel data. Replace them when you have real numbers, and
   update the rationale strings in `ASSUMPTION_FIELDS` to cite the source at the
   same time. The report prints those rationales verbatim.
-- The report has no e-mail or storage step. It writes a PDF to `out/`; sending
-  or hosting it is left to whatever already does that.
 - `cal.com` and demo links are hardcoded in `CalculatorMode.tsx`.
 - The in-browser pilot preview still exists under the "Pilot report" tab. The
   PDF from `npm run report` is the deliverable; that tab is for checking a
