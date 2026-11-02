@@ -3,14 +3,21 @@
    ============================================================ */
 
 /* ── Logo ─────────────────────────────────────────────────── */
-.logo { display: inline-block; flex: none; }
-.logo img { display: block; }
+/* Both variants are in the DOM and exactly one is shown. Every rule below
+   targets a variant class directly: an earlier `.logo img { display: block }`
+   outranked the `.logo__dark { display: none }` beneath it on specificity, so
+   both wordmarks rendered at once. */
+.logo { display: inline-block; flex: none; line-height: 0; }
+.logo__light { display: block; }
 .logo__dark { display: none; }
 :root[data-theme='dark'] .logo__light { display: none; }
 :root[data-theme='dark'] .logo__dark { display: block; }
+
+/* Paper is white, so the dark wordmark never prints. Matches the theme rules'
+   specificity and comes later, which is why no !important is needed. */
 @media print {
-  .logo__dark { display: none !important; }
-  .logo__light { display: block !important; }
+  :root .logo__light, :root[data-theme='dark'] .logo__light { display: block; }
+  :root .logo__dark, :root[data-theme='dark'] .logo__dark { display: none; }
 }
 
 /* ── Top bar ──────────────────────────────────────────────── */

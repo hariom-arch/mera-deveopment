@@ -155,7 +155,7 @@ function projection(d: ReportData): string {
 }
 
 /* ── Page 1: cover ──────────────────────────────────────────── */
-function coverPage(d: ReportData, total: number): string {
+function coverPage(d: ReportData): string {
   const { config, metric } = d;
   const metricValue = formatMetric(metric.actual, metric.def.unit, (n) => money(n, config.currency));
 
@@ -221,7 +221,6 @@ function coverPage(d: ReportData, total: number): string {
         ${verdict}
       </div>
     </div>
-    ${chrome(d, 1, total).replace('<div class="chrome">', '<div class="chrome" style="display:none">')}
   </section>`;
 }
 
@@ -688,7 +687,7 @@ function methodPage(d: ReportData, pageNum: number, total: number): string {
 export function renderReportHtml(d: ReportData): string {
   const total = 6;
   const pages = [
-    coverPage(d, total),
+    coverPage(d),
     metricPage(d, 2, total),
     analyticsPage(d, 3, total),
     costPage(d, 4, total),
